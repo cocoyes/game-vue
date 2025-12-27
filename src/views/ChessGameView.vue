@@ -37,7 +37,7 @@ const stop = () => {
   }
 }
 
-const runLoop = async () => {
+  const runLoop = async () => {
   if (!isRunning || game.value.gameOver) {
     gameStatus.value = game.value.gameOver
       ? `Game Over · ${game.value.winner === 'r' ? 'Red' : 'Black'} Wins`
@@ -50,6 +50,9 @@ const runLoop = async () => {
 
   const ai = isRed ? aiRed : aiBlack
 
+  // Random delay between 2000ms and 4000ms
+  const delay = Math.floor(Math.random() * 2000) + 2000
+  
   timer = setTimeout(async () => {
     const move = await ai.getBestMove()
     if (move) {
@@ -59,7 +62,7 @@ const runLoop = async () => {
       game.value.gameOver = true
       gameStatus.value = 'Game Over · No Moves'
     }
-  }, 800)
+  }, delay)
 }
 
 const start = () => {
@@ -127,59 +130,62 @@ const getPieceStyle = (x: number, y: number) => {
       </button>
     </div>
 
-    <!-- 对手 -->
-    <div class="player-area opponent">
-      <div class="player-card" :class="{ active: currentTurn === 'b' }">
-        <img :src="gameStore.player2.avatar" />
-        <div>
-          <div class="name">{{ gameStore.player2.name }}</div>
-          <div class="score">Score {{ gameStore.player2.score }}</div>
+    <!-- 主布局：左侧玩家 - 中间棋盘 - 右侧玩家 -->
+    <div class="main-content">
+      <!-- 左侧：对手 (黑) -->
+      <div class="side-panel">
+        <div class="player-card" :class="{ active: currentTurn === 'b' }">
+          <img :src="gameStore.player2.avatar" />
+          <div class="player-info">
+            <div class="name">Black (AI)</div>
+            <div class="score">Score {{ gameStore.player2.score }}</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 棋盘 -->
-    <div class="board-container">
-      <div class="chess-board">
-        <XiangqiBoard />
+      <!-- 中间：棋盘 -->
+      <div class="board-container">
+        <div class="chess-board">
+          <XiangqiBoard />
 
-        <!-- 上一步 -->
-        <div
-          v-if="lastMove"
-          class="last-move"
-          :style="getPieceStyle(lastMove.fx, lastMove.fy)"
-        />
-        <div
-          v-if="lastMove"
-          class="last-move"
-          :style="getPieceStyle(lastMove.tx, lastMove.ty)"
-        />
+          <!-- 上一步 -->
+          <div
+            v-if="lastMove"
+            class="last-move"
+            :style="getPieceStyle(lastMove.fx, lastMove.fy)"
+          />
+          <div
+            v-if="lastMove"
+            class="last-move"
+            :style="getPieceStyle(lastMove.tx, lastMove.ty)"
+          />
 
-        <!-- 棋子 -->
-        <template v-for="(row, y) in board" :key="y">
-          <template v-for="(piece, x) in row" :key="x">
-            <div
-              v-if="piece"
-              class="piece"
-              :class="piece.color === 'r' ? 'red' : 'black'"
-              :style="getPieceStyle(x, y)"
-            >
-              <div class="piece-inner">
-                {{ getPieceChar(piece) }}
+          <!-- 棋子 -->
+          <template v-for="(row, y) in board" :key="y">
+            <template v-for="(piece, x) in row" :key="x">
+              <div
+                v-if="piece"
+                class="piece"
+                :class="piece.color === 'r' ? 'red' : 'black'"
+                :style="getPieceStyle(x, y)"
+              >
+                <div class="piece-inner">
+                  {{ getPieceChar(piece) }}
+                </div>
               </div>
-            </div>
+            </template>
           </template>
-        </template>
+        </div>
       </div>
-    </div>
 
-    <!-- 自己 -->
-    <div class="player-area self">
-      <div class="player-card" :class="{ active: currentTurn === 'r' }">
-        <img :src="gameStore.player1.avatar" />
-        <div>
-          <div class="name">{{ gameStore.player1.name }}</div>
-          <div class="score">Score {{ gameStore.player1.score }}</div>
+      <!-- 右侧：自己 (红) -->
+      <div class="side-panel">
+        <div class="player-card" :class="{ active: currentTurn === 'r' }">
+          <img :src="gameStore.player1.avatar" />
+          <div class="player-info">
+            <div class="name">Red (AI)</div>
+            <div class="score">Score {{ gameStore.player1.score }}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -202,6 +208,7 @@ const getPieceStyle = (x: number, y: number) => {
   align-items: center;
   padding: 10px 16px;
   background: rgba(15, 23, 42, 0.8);
+  flex-shrink: 0;
 }
 
 .center-info {
@@ -218,64 +225,102 @@ const getPieceStyle = (x: number, y: number) => {
   padding: 4px 10px;
   border-radius: 12px;
   background: #334155;
+  transition: 0.3s;
 }
 
 .status-badge.red-turn {
-  background: rgba(220, 38, 38, 0.3);
+  background: rgba(220, 38, 38, 0.6);
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.4);
 }
 
 .status-badge.black-turn {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 .icon-btn {
   background: none;
   border: none;
   color: #fff;
+  cursor: pointer;
 }
 
-/* 玩家 */
-.player-area {
+/* 主内容区 */
+.main-content {
+  flex: 1;
   display: flex;
-  justify-content: center;
-  padding: 8px 0;
+  flex-direction: row;
+  align-items: stretch;
+  overflow: hidden;
+  padding: 10px;
+  gap: 20px;
 }
 
+.side-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 玩家卡片 */
 .player-card {
   display: flex;
+  flex-direction: column; /* 侧边改为垂直布局更好看 */
   gap: 12px;
   align-items: center;
-  padding: 8px 16px;
-  border-radius: 999px;
+  padding: 20px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
-  opacity: 0.6;
+  opacity: 0.5;
   transition: 0.3s;
+  border: 2px solid transparent;
+  min-width: 120px;
+  text-align: center;
 }
 
 .player-card.active {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(45, 212, 191, 0.6);
+  box-shadow: 0 0 20px rgba(45, 212, 191, 0.2);
+  transform: scale(1.05);
 }
 
 .player-card img {
-  width: 40px;
-  height: 40px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+
+.player-info .name {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 4px;
+}
+
+.player-info .score {
+  font-size: 0.9em;
+  opacity: 0.7;
 }
 
 /* 棋盘 */
 .board-container {
-  flex: 1;
+  flex: 2; /* 棋盘占据更多空间 */
   display: flex;
   justify-content: center;
   align-items: center;
+  /* 限制最大高度，防止溢出 */
+  max-height: 100%;
 }
 
 .chess-board {
   position: relative;
-  width: 100%;
-  max-width: 420px;
-  aspect-ratio: 9 / 10;
+  height: 95%; /* 尽可能填满高度 */
+  aspect-ratio: 9 / 10; /* 保持棋盘比例 */
+  max-width: 100%;
 }
 
 /* 棋子 */
@@ -288,26 +333,32 @@ const getPieceStyle = (x: number, y: number) => {
   justify-content: center;
   align-items: center;
   transition: left 0.4s ease, top 0.4s ease;
+  z-index: 10;
 }
 
 .piece-inner {
-  width: 85%;
-  height: 85%;
+  width: 88%;
+  height: 88%;
   border-radius: 50%;
   background: #fdf6e3;
-  font-family: "KaiTi", serif;
+  font-family: "KaiTi", "STKaiti", serif;
   font-weight: bold;
+  font-size: 1.4em; /* 稍微大一点 */
   display: flex;
   justify-content: center;
   align-items: center;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  border: 2px solid rgba(0,0,0,0.1);
 }
 
 .red .piece-inner {
   color: #c92a2a;
+  border-color: #c92a2a;
 }
 
 .black .piece-inner {
   color: #111;
+  border-color: #111;
 }
 
 /* 上一步 */
@@ -316,7 +367,9 @@ const getPieceStyle = (x: number, y: number) => {
   width: 11.11%;
   height: 10%;
   transform: translate(-50%, -50%);
-  border: 2px dashed rgba(45, 212, 191, 0.6);
+  border: 2px dashed rgba(45, 212, 191, 0.8);
   border-radius: 50%;
+  box-shadow: 0 0 10px rgba(45, 212, 191, 0.4);
+  z-index: 5;
 }
 </style>
