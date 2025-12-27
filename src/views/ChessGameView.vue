@@ -4,6 +4,7 @@ import { useGameStore } from '../stores/game'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, RefreshCw } from 'lucide-vue-next'
 import { XiangqiGame, AIPlayer, type Piece } from '../utils/xiangqi' // Ensure this path is correct
+import XiangqiBoard from '../components/XiangqiBoard.vue'
 
 const gameStore = useGameStore()
 const router = useRouter()
@@ -12,6 +13,7 @@ const router = useRouter()
 const game = ref(new XiangqiGame())
 const board = computed(() => game.value.board)
 const currentTurn = computed(() => game.value.turn)
+const lastMove = computed(() => game.value.lastMove) 
 
 // AI Agents
 const aiRed = new AIPlayer(game.value, 'r', 2) // Depth 2 for speed/demo
@@ -65,8 +67,7 @@ const runGameLoop = async () => {
         // Schedule next turn
         isThinking.value = false
         if (isRunning) {
-             // 1 second delay between moves so user can see it
-            autoPlayInterval.value = setTimeout(runGameLoop, 1000) 
+            autoPlayInterval.value = setTimeout(runGameLoop, 1500) 
         }
       } else {
         // No moves available (Checkmate/Stalemate)
@@ -118,6 +119,20 @@ const getPieceChar = (p: Piece) => {
   return map[key] || p.type
 }
 
+// Convert board coords (0-8, 0-9) to percentage positions for absolute placement
+// Board SVG is 90x100.
+// Grid starts at 5,5. Step is 10.
+// x% = (5 + x*10) / 90 * 100
+// y% = (5 + y*10) / 100 * 100
+const getPieceStyle = (x: number, y: number) => {
+   const left = (5 + x * 10) / 90 * 100
+   const top = (5 + y * 10)
+   return {
+     left: `${left}%`,
+     top: `${top}%`
+   }
+}
+
 </script>
 
 <template>
@@ -156,27 +171,11 @@ const getPieceChar = (p: Piece) => {
     <div class="board-container">
       <div class="chess-board-wrapper">
         <div class="chess-board">
-          <!-- Grid Lines -->
-           <div class="grid-lines">
-             <!-- Horizontal -->
-             <div v-for="i in 10" :key="`h-${i}`" class="line-h" :style="{ top: `calc((100% / 10) * ${i} - (100% / 20))` }"></div>
-             <!-- Vertical -->
-             <div v-for="i in 9" :key="`v-${i}`" class="line-v" :style="{ left: `calc((100% / 9) * ${i} - (100% / 18))` }"></div>
-             <!-- River Cover (hides vertical lines in middle) -->
-              <div class="river-bg"></div>
-              <!-- Diagonal Palace Lines (Top) -->
-              <div class="palace-line p-top-1"></div>
-              <div class="palace-line p-top-2"></div>
-              <!-- Diagonal Palace Lines (Bottom) -->
-              <div class="palace-line p-bot-1"></div>
-              <div class="palace-line p-bot-2"></div>
-           </div>
+          <XiangqiBoard />
 
-           <!-- River Text -->
-           <div class="river">
-             <span>楚 河</span>
-             <span>漢 界</span>
-           </div>
+           <!-- Last Move Highlights if any -->
+           <div v-if="lastMove" class="last-move-marker from" :style="getPieceStyle(lastMove.fx, lastMove.fy)"></div>
+           <div v-if="lastMove" class="last-move-marker to" :style="getPieceStyle(lastMove.tx, lastMove.ty)"></div>
 
            <!-- Pieces -->
            <template v-for="(row, y) in board" :key="y">
@@ -185,15 +184,13 @@ const getPieceChar = (p: Piece) => {
                  v-if="piece"
                  class="piece" 
                  :class="[
-                   piece.color === 'r' ? 'piece-red' : 'piece-black',
-                   // Add a subtle bounce if it just moved (can add logic later)
+                   piece.color === 'r' ? 'piece-red' : 'piece-black'
                  ]"
-                 :style="{ 
-                   left: `calc((100% / 9) * ${x+1} - (100% / 18))`, 
-                   top: `calc((100% / 10) * ${y+1} - (100% / 20))` 
-                 }"
+                 :style="getPieceStyle(x, y)"
                >
-                 {{ getPieceChar(piece) }}
+                 <div class="piece-inner">
+                   {{ getPieceChar(piece) }}
+                 </div>
                </div>
              </template>
            </template>
@@ -382,90 +379,100 @@ const getPieceChar = (p: Piece) => {
   max-width: 450px; /* 9 units wide */
   max-height: 500px; /* 10 units high */
   aspect-ratio: 9/10;
-  background: #DEB887;
+  /* background: #DEB887; Removed, now handled by SVG */
   position: relative;
-  margin: 30px; /* Space for pieces on the edge */
-  box-shadow: 0 20px 30px rgba(0,0,0,0.3);
+  margin: 30px; 
+  /* box-shadow: 0 20px 30px rgba(0,0,0,0.3); handled by svg slightly or container */
   user-select: none;
 }
 
-.grid-lines {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  pointer-events: none;
-}
-
-.line-h {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background-color: #713f12;
-}
-
-.line-v {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background-color: #713f12;
-}
-
-.river-bg {
-  position: absolute;
-  top: 40%; /* Between line 4 and 5 (0-indexed) -> 4/9 to 5/9?? No. lines are y=0..9 */
-  /* River is between y=4 and y=5 */
-  /* y=4 is at 4/9 = 44.4% */
-  /* y=5 is at 5/9 = 55.5% */
-  /* We want to cover the verticals between these two. */
-  top: 44.6%; 
-  height: 10.8%;
-  left: 1px;
-  right: 1px;
-  background: #DEB887; /* Same as board bg */
-  z-index: 1;
-}
-
-.palace-line {
-  position: absolute;
-  background-color: #713f12;
-  height: 1px;
-  width: 140%; /* Sqrt(2) roughly */
-  transform-origin: 0 0;
-}
-/* Palace X coords: 3..5. Y coords: 0..2 (Black), 7..9 (Red) */
-/* Need diagonals. */
-/* CSS diagonal lines are tricky without SVG. Simplified: skip or use simple approximation. */
-/* Let's skip diagonals for this 'perfect alignment' fix to ensure basics work first. */
-
 .piece {
-  width: 12%; /* Slightly larger than grid gap */
-  aspect-ratio: 1;
+  /* Pieces are positioned relatively by %, so width/height relative to board */
+  /* Board is 90 units wide. Cell is 10. Piece should be ~8-9 units */
+  /* 9/90 = 10% */
+  width: 10%; 
+  height: 10%; /* Since board is 90x100, height % is different? No, aspect ratio is fixed. */
+  /* Wait. width: 10% of 450px is 45px. height: 10% of 500px is 50px. */
+  /* We want square pieces. */
+  /* Use aspect-ratio on piece? and max dimension. */
+  /* Or just use unitless calculations if aspect-ratio of container is fixed 9/10 */
+  /* Actually, 10% width is 1/9th of width. */
+  /* 10% height is 1/10th of height. */
+  /* Since W/H = 9/10, 10%W = W/9? No 10% is W/10. */
+  /* We want piece size = grid size ~ 10 units. */
+  /* 10 units / 90 units width = 11.11% */
+  /* 10 units / 100 units height = 10% */
+  width: 11.11%;
+  height: 10%;
+  
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1); */
+  /* Smooth movement */
+  transition: left 0.5s ease-out, top 0.5s ease-out;
+}
+
+.piece-inner {
+  width: 85%;
+  height: 85%;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  font-weight: bold; 
   font-size: 1.2rem;
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-  position: absolute;
   font-family: "KaiTi", "STKaiti", serif;
-  transform: translate(-50%, -50%);
-  transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-  z-index: 10;
+  box-shadow: 
+    1px 2px 4px rgba(0,0,0,0.4),
+    inset 0 2px 6px rgba(255,255,255,0.3),
+    inset 0 -2px 4px rgba(0,0,0,0.1);
+  border: 1px solid rgba(0,0,0,0.15);
 }
 
-.piece-black {
+.piece-black .piece-inner {
   background: #fdf6e3; 
   color: #1a1a1a;
-  border: 1px solid #1a1a1a;
+  border-color: #5d4037;
 }
 
-.piece-red {
+.piece-red .piece-inner {
   background: #fdf6e3;
-  color: #dc2626;
-  border: 1px solid #dc2626;
+  color: #c92a2a;
+  border-color: #c92a2a;
 }
+
+.last-move-marker {
+  position: absolute;
+  width: 11.11%;
+  height: 10%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.last-move-marker::after {
+  content: '';
+  width: 90%;
+  height: 90%;
+  border: 2px dashed rgba(45, 212, 191, 0.6);
+  border-radius: 50%;
+  background: rgba(45, 212, 191, 0.1);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.5; }
+}
+
 
 
 </style>

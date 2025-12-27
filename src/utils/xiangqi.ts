@@ -82,6 +82,7 @@ export class XiangqiGame {
     history: string[] = []
     gameOver: boolean = false
     winner: Color | null = null
+    lastMove: { fx: number, fy: number, tx: number, ty: number } | null = null
 
     constructor() {
         this.board = JSON.parse(JSON.stringify(INITIAL_BOARD))
@@ -116,6 +117,7 @@ export class XiangqiGame {
         this.board[toY]![toX] = piece
         this.board[fromY]![fromX] = null
         this.turn = this.turn === 'r' ? 'b' : 'r'
+        this.lastMove = { fx: fromX, fy: fromY, tx: toX, ty: toY }
 
         return true
     }
