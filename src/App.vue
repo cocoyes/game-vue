@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { RouterView, useRoute } from 'vue-router'
+import { RouterView } from 'vue-router'
 
 
-const route = useRoute()
+
 
 </script>
 
 <template>
- 
+  <RouterView />
 </template>
 
 <style scoped>
